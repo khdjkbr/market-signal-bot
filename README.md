@@ -28,6 +28,8 @@ pnpm run check
 Веб-панель открывается по адресу `http://localhost:3000/`.
 В панели можно выбрать биржу и рынок, обновить live-сигналы и открыть виртуальную long/short-позицию.
 
+GitHub Pages публикует статическую версию dashboard: `https://khdjkbr.github.io/market-signal-bot/`. В Pages используется demo-режим, а paper-портфель сохраняется в браузере. Live API требует отдельного постоянно работающего backend.
+
 ## Текущий MVP
 
 - инструменты: BTC/USDT, ETH/USDT, SOL/USDT, XAUT/USDT;

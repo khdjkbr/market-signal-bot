@@ -1,7 +1,21 @@
 const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
 const formatPrice = (value) => Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 4 });
+const isStaticMode = window.location.hostname.endsWith("github.io");
+const demoSignals = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XAUT/USDT"].map((symbol, index) => ({
+  symbol,
+  signal: index % 2 === 0 ? "HOLD" : "BUY",
+  currentPrice: [64000, 3200, 145, 2350][index],
+  probabilities: { growth: index % 2 === 0 ? 0.25 : 0.65, decline: index % 2 === 0 ? 0.25 : 0.2, sideways: index % 2 === 0 ? 0.5 : 0.15 },
+}));
+const defaultPortfolio = { balance: 10000, positions: {}, trades: [] };
+
+const getStaticPortfolio = () => JSON.parse(localStorage.getItem("paper-portfolio") ?? JSON.stringify(defaultPortfolio));
+const saveStaticPortfolio = (portfolio) => localStorage.setItem("paper-portfolio", JSON.stringify(portfolio));
 
 const loadDashboard = async () => {
+  if (isStaticMode) {
+    return { signals: { signals: demoSignals, errors: [] }, portfolio: getStaticPortfolio() };
+  }
   const exchange = document.querySelector("#exchange").value;
   const market = document.querySelector("#market").value;
   const [signalsResponse, portfolioResponse] = await Promise.all([
@@ -30,6 +44,28 @@ const renderSignals = (signals) => {
 
 const executeTrade = async ({ action, side, symbol, price }) => {
   const quantity = Number(document.querySelector("#quantity").value);
+  if (isStaticMode) {
+    const portfolio = getStaticPortfolio();
+    if (action === "open") {
+      if (portfolio.positions[symbol]) {
+        throw new Error(`Позиция ${symbol} уже открыта`);
+      }
+      portfolio.positions[symbol] = { symbol, side, entryPrice: Number(price), quantity, openedAt: Date.now() };
+      portfolio.trades.push({ type: "open", symbol, side, price: Number(price), quantity, timestamp: Date.now() });
+    } else {
+      const position = portfolio.positions[symbol];
+      if (!position) {
+        throw new Error(`Нет открытой позиции ${symbol}`);
+      }
+      const pnl = position.side === "long" ? (Number(price) - position.entryPrice) * position.quantity : (position.entryPrice - Number(price)) * position.quantity;
+      portfolio.balance = Number((portfolio.balance + pnl).toFixed(6));
+      delete portfolio.positions[symbol];
+      portfolio.trades.push({ type: "close", symbol, price: Number(price), pnl, timestamp: Date.now() });
+    }
+    saveStaticPortfolio(portfolio);
+    await refresh();
+    return;
+  }
   const response = await fetch("/api/paper-trade", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, side, symbol, price: Number(price), quantity }) });
   const result = await response.json();
   if (!response.ok) {
