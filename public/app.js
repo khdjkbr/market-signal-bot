@@ -2,8 +2,10 @@ const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
 const formatPrice = (value) => Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 4 });
 
 const loadDashboard = async () => {
+  const exchange = document.querySelector("#exchange").value;
+  const market = document.querySelector("#market").value;
   const [signalsResponse, portfolioResponse] = await Promise.all([
-    fetch("/api/signals"),
+    fetch(`/api/live-signals?exchange=${exchange}&market=${market}&interval=1H`),
     fetch("/api/paper-portfolio"),
   ]);
   if (!signalsResponse.ok || !portfolioResponse.ok) {
@@ -21,10 +23,23 @@ const renderSignals = (signals) => {
       <div class="probability"><span>Рост</span><strong>${formatPercent(item.probabilities.growth)}</strong></div>
       <div class="probability"><span>Падение</span><strong>${formatPercent(item.probabilities.decline)}</strong></div>
       <div class="probability"><span>Боковик</span><strong>${formatPercent(item.probabilities.sideways)}</strong></div>
+      <div class="trade-actions"><button class="trade-button" data-action="open" data-side="long" data-symbol="${item.symbol}" data-price="${item.currentPrice}">Long</button><button class="trade-button" data-action="open" data-side="short" data-symbol="${item.symbol}" data-price="${item.currentPrice}">Short</button></div>
     </article>`).join("");
+  container.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => executeTrade(button.dataset)));
 };
 
-const renderPortfolio = (portfolio) => {
+const executeTrade = async ({ action, side, symbol, price }) => {
+  const quantity = Number(document.querySelector("#quantity").value);
+  const response = await fetch("/api/paper-trade", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, side, symbol, price: Number(price), quantity }) });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error);
+  }
+  await refresh();
+};
+
+const renderPortfolio = (portfolio, signals) => {
+  const currentPrices = new Map(signals.map((signal) => [signal.symbol, signal.currentPrice]));
   document.querySelector("#balance").textContent = `${formatPrice(portfolio.balance)} USDT`;
   document.querySelector("#position-count").textContent = Object.keys(portfolio.positions).length;
   document.querySelector("#trade-count").textContent = portfolio.trades.length;
@@ -32,7 +47,8 @@ const renderPortfolio = (portfolio) => {
 
   const positions = Object.values(portfolio.positions);
   document.querySelector("#positions").innerHTML = positions.length === 0 ? "Нет открытых позиций" : positions.map((position) => `
-    <div class="row"><span>${position.symbol} · ${position.side}</span><strong>${formatPrice(position.entryPrice)}</strong></div>`).join("");
+    <div class="row"><span>${position.symbol} · ${position.side}</span><span><strong>${formatPrice(position.entryPrice)}</strong> <button class="trade-button" data-action="close" data-symbol="${position.symbol}" data-price="${currentPrices.get(position.symbol) ?? position.entryPrice}">Закрыть</button></span></div>`).join("");
+  document.querySelectorAll("#positions button").forEach((button) => button.addEventListener("click", () => executeTrade(button.dataset)));
   document.querySelector("#trades").innerHTML = portfolio.trades.length === 0 ? "Нет сделок" : portfolio.trades.slice(-5).reverse().map((trade) => `
     <div class="row"><span>${trade.type === "open" ? "Открытие" : "Закрытие"} · ${trade.symbol}</span><strong>${trade.pnl === undefined ? "—" : `${formatPrice(trade.pnl)} USDT`}</strong></div>`).join("");
 };
@@ -43,12 +59,14 @@ const refresh = async () => {
   try {
     const dashboard = await loadDashboard();
     renderSignals(dashboard.signals.signals);
-    renderPortfolio(dashboard.portfolio);
-    status.textContent = "Демо-режим";
+    renderPortfolio(dashboard.portfolio, dashboard.signals.signals);
+    status.textContent = dashboard.signals.errors?.length ? `Ошибок: ${dashboard.signals.errors.length}` : "Live-данные";
   } catch (error) {
     status.textContent = error.message;
   }
 };
 
 document.querySelector("#refresh-button").addEventListener("click", refresh);
+document.querySelector("#exchange").addEventListener("change", refresh);
+document.querySelector("#market").addEventListener("change", refresh);
 refresh();

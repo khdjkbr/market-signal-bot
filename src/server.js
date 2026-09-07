@@ -11,6 +11,7 @@ import { loadPortfolio, savePortfolio } from "./storage.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const staticFiles = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
+const symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XAUT/USDT"];
 
 const sendJson = (response, statusCode, payload) => {
   response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
@@ -60,6 +61,24 @@ const server = createServer((request, response) => {
       horizon: "24h",
     }));
     sendJson(response, 200, { source: "demo", signals });
+    return;
+  }
+
+  if (request.url?.startsWith("/api/live-signals")) {
+    const url = new URL(request.url, "http://localhost");
+    const exchange = url.searchParams.get("exchange") ?? "bitget";
+    const market = url.searchParams.get("market") ?? "futures";
+    const interval = url.searchParams.get("interval") ?? "1H";
+    Promise.allSettled(symbols.map(async (symbol) => {
+      const candles = await fetchExchangeCandles({ exchange, symbol, interval, market, limit: 100 });
+      await saveCandles(candles);
+      return createSignal({ symbol, prices: candles.map((candle) => candle.close), horizon: interval });
+    })).then((results) => sendJson(response, 200, {
+      source: exchange,
+      market,
+      signals: results.filter((result) => result.status === "fulfilled").map((result) => result.value),
+      errors: results.filter((result) => result.status === "rejected").map((result) => result.reason.message),
+    })).catch((error) => sendJson(response, 502, { error: error.message }));
     return;
   }
 

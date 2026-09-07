@@ -18,6 +18,7 @@ pnpm run check
 
 - `GET /api/health`
 - `GET /api/signals`
+- `GET /api/live-signals?exchange=bitget&market=futures&interval=1H`
 - `GET /api/candles?exchange=bitget&symbol=BTC%2FUSDT&market=futures&interval=1H`
 - `GET /api/backtest?exchange=bitget&symbol=BTC%2FUSDT&market=futures&interval=1H&limit=200`
 - `GET /api/stored-candles?exchange=bitget&symbol=BTC%2FUSDT&interval=1H`
@@ -25,6 +26,7 @@ pnpm run check
 - `POST /api/paper-trade` с JSON `{"action":"open","symbol":"BTC/USDT","side":"long","price":100,"quantity":1}`
 
 Веб-панель открывается по адресу `http://localhost:3000/`.
+В панели можно выбрать биржу и рынок, обновить live-сигналы и открыть виртуальную long/short-позицию.
 
 ## Текущий MVP
 

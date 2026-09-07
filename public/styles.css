@@ -15,6 +15,8 @@ h1, h2, p { margin: 0; } h1 { font-size: clamp(2rem, 5vw, 3.5rem); letter-spacin
 .signals-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
 .signal { border: 1px solid #33445e; border-radius: 12px; padding: 16px; } .signal h3 { margin: 0 0 12px; font-size: 1rem; }
 .signal-value { font-size: 1.25rem; font-weight: 800; } .buy { color: #5ee6a8; } .sell { color: #ff8298; } .hold { color: #f6c969; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; } .toolbar label { color: #9aa8bc; font-size: .85rem; display: flex; align-items: center; gap: 6px; } select, input { border: 1px solid #3b4c68; border-radius: 8px; background: #111a29; color: #edf2f7; padding: 7px 9px; font: inherit; }
+.trade-actions { display: flex; gap: 6px; margin-top: 14px; } .trade-button { border: 1px solid #3b4c68; border-radius: 7px; background: #23324a; color: #edf2f7; cursor: pointer; padding: 6px 8px; font-size: .8rem; } .trade-button:hover { background: #315078; }
 .probability { display: flex; justify-content: space-between; color: #aebbd0; font-size: .85rem; margin-top: 8px; }
 .empty { color: #8392a8; padding-top: 18px; } .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #29364d; } .row:last-child { border-bottom: 0; }
 @media (max-width: 800px) { .stats-grid, .signals-grid, .content-grid { grid-template-columns: repeat(2, 1fr); } }
