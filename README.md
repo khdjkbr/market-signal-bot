@@ -18,6 +18,7 @@ pnpm run check
 
 - `GET /api/health`
 - `GET /api/signals`
+- `GET /api/candles?exchange=bitget&symbol=BTC%2FUSDT&market=futures&interval=1H`
 
 ## Текущий MVP
 
@@ -27,5 +28,6 @@ pnpm run check
 - сигнал: BUY, SELL или HOLD;
 - вероятности сценариев;
 - подготовленная модель виртуальной позиции.
+- публичная загрузка свечей Bitget для spot/futures и MEXC для futures.
 
-Адаптеры бирж уже приводят свечи MEXC и Bitget к единому формату. Следующий шаг — подключить загрузку исторических данных и добавить хранение сигналов.
+Адаптеры бирж приводят свечи MEXC и Bitget к единому формату. Следующий шаг — добавить хранение исторических данных и backtesting.
