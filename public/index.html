@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Market Signal Bot</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <p class="eyebrow">PAPER TRADING</p>
+          <h1>Market Signal Bot</h1>
+          <p class="muted">Экспериментальные сигналы для MEXC и Bitget</p>
+        </div>
+        <button id="refresh-button" class="button">Обновить</button>
+      </header>
+
+      <section class="stats-grid" aria-label="Состояние портфеля">
+        <article class="card stat-card"><span>Баланс</span><strong id="balance">—</strong></article>
+        <article class="card stat-card"><span>Открытые позиции</span><strong id="position-count">—</strong></article>
+        <article class="card stat-card"><span>Сделок</span><strong id="trade-count">—</strong></article>
+        <article class="card stat-card"><span>Последнее обновление</span><strong id="updated-at">—</strong></article>
+      </section>
+
+      <section class="card">
+        <div class="section-heading"><h2>Сигналы</h2><span id="signal-status" class="muted">Загрузка…</span></div>
+        <div id="signals" class="signals-grid"></div>
+      </section>
+
+      <section class="content-grid">
+        <article class="card"><div class="section-heading"><h2>Позиции</h2></div><div id="positions" class="empty">Нет открытых позиций</div></article>
+        <article class="card"><div class="section-heading"><h2>Последние сделки</h2></div><div id="trades" class="empty">Нет сделок</div></article>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

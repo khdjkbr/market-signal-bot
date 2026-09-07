@@ -24,6 +24,8 @@ pnpm run check
 - `GET /api/paper-portfolio`
 - `POST /api/paper-trade` с JSON `{"action":"open","symbol":"BTC/USDT","side":"long","price":100,"quantity":1}`
 
+Веб-панель открывается по адресу `http://localhost:3000/`.
+
 ## Текущий MVP
 
 - инструменты: BTC/USDT, ETH/USDT, SOL/USDT, XAUT/USDT;

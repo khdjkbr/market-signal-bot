@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
 import { fetchExchangeCandles } from "./market-data.js";
 import { runBacktest } from "./backtest.js";
 import { closePosition, createPortfolio, openPosition } from "./paper-portfolio.js";
@@ -8,6 +10,7 @@ import { loadCandles, saveCandles } from "./storage.js";
 import { loadPortfolio, savePortfolio } from "./storage.js";
 
 const port = Number(process.env.PORT ?? 3000);
+const staticFiles = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
 
 const sendJson = (response, statusCode, payload) => {
   response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
@@ -22,7 +25,30 @@ const readBody = async (request) => {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 };
 
+const serveStatic = async (request, response) => {
+  const requestedPath = request.url === "/" ? "index.html" : request.url.slice(1);
+  if (requestedPath.includes("..") || !staticFiles[extname(requestedPath)]) {
+    return false;
+  }
+
+  try {
+    const body = await readFile(`public/${requestedPath}`);
+    response.writeHead(200, { "Content-Type": staticFiles[extname(requestedPath)] });
+    response.end(body);
+    return true;
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+    return false;
+  }
+};
+
 const server = createServer((request, response) => {
+  if (request.method === "GET" && (request.url === "/" || request.url?.startsWith("/app.") || request.url?.startsWith("/styles."))) {
+    serveStatic(request, response).catch((error) => sendJson(response, 500, { error: error.message }));
+    return;
+  }
   if (request.url === "/api/health") {
     sendJson(response, 200, { status: "ok", mode: "demo" });
     return;
