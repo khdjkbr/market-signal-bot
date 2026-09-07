@@ -1,15 +1,25 @@
 import { createServer } from "node:http";
 import { fetchExchangeCandles } from "./market-data.js";
 import { runBacktest } from "./backtest.js";
+import { closePosition, createPortfolio, openPosition } from "./paper-portfolio.js";
 import { createSignal } from "./signals.js";
 import { getSampleMarketData } from "./sample-data.js";
 import { loadCandles, saveCandles } from "./storage.js";
+import { loadPortfolio, savePortfolio } from "./storage.js";
 
 const port = Number(process.env.PORT ?? 3000);
 
 const sendJson = (response, statusCode, payload) => {
   response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(payload, null, 2));
+};
+
+const readBody = async (request) => {
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(chunk);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 };
 
 const server = createServer((request, response) => {
@@ -69,6 +79,29 @@ const server = createServer((request, response) => {
     loadCandles({ exchange, symbol, interval })
       .then((candles) => sendJson(response, 200, { exchange, symbol, interval, candles }))
       .catch((error) => sendJson(response, 500, { error: error.message }));
+    return;
+  }
+
+  if (request.url === "/api/paper-portfolio" && request.method === "GET") {
+    loadPortfolio()
+      .then((portfolio) => sendJson(response, 200, portfolio ?? createPortfolio()))
+      .catch((error) => sendJson(response, 500, { error: error.message }));
+    return;
+  }
+
+  if (request.url === "/api/paper-trade" && request.method === "POST") {
+    readBody(request)
+      .then(async (trade) => {
+        const portfolio = (await loadPortfolio()) ?? createPortfolio();
+        const updated = trade.action === "open"
+          ? openPosition(portfolio, trade)
+          : trade.action === "close"
+            ? closePosition(portfolio, trade)
+            : (() => { throw new Error("Action must be open or close"); })();
+        await savePortfolio(updated);
+        sendJson(response, 200, updated);
+      })
+      .catch((error) => sendJson(response, 400, { error: error.message }));
     return;
   }
 

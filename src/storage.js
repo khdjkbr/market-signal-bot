@@ -39,3 +39,16 @@ export const loadCandles = async ({ exchange, symbol, interval }) => {
   const store = await readStore();
   return store.candles[`${exchange}:${symbol}:${interval}`] ?? [];
 };
+
+export const loadPortfolio = async () => {
+  const store = await readStore();
+  return store.portfolio ?? null;
+};
+
+export const savePortfolio = async (portfolio) => {
+  const store = await readStore();
+  store.portfolio = portfolio;
+  await mkdir(dirname(dataFile), { recursive: true });
+  await writeFile(dataFile, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  return portfolio;
+};

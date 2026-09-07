@@ -21,6 +21,8 @@ pnpm run check
 - `GET /api/candles?exchange=bitget&symbol=BTC%2FUSDT&market=futures&interval=1H`
 - `GET /api/backtest?exchange=bitget&symbol=BTC%2FUSDT&market=futures&interval=1H&limit=200`
 - `GET /api/stored-candles?exchange=bitget&symbol=BTC%2FUSDT&interval=1H`
+- `GET /api/paper-portfolio`
+- `POST /api/paper-trade` с JSON `{"action":"open","symbol":"BTC/USDT","side":"long","price":100,"quantity":1}`
 
 ## Текущий MVP
 
@@ -33,3 +35,4 @@ pnpm run check
 - публичная загрузка свечей Bitget для spot/futures и MEXC для futures.
 
 Адаптеры бирж приводят свечи MEXC и Bitget к единому формату. Свечи сохраняются в локальное JSON-хранилище, а backtesting учитывает комиссию 0.1% на вход и выход.
+Paper portfolio использует виртуальный баланс 10 000 USDT и поддерживает long/short позиции без реальных ордеров.
