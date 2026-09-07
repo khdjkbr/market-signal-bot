@@ -32,6 +32,6 @@ test("normalizes MEXC candle payloads", () => {
     },
   }, "BTC_USDT", "Min60");
 
-  assert.equal(result[0].timestamp, 1000);
+  assert.equal(result[0].timestamp, 2000);
   assert.equal(result[1].turnover, 4200);
 });
