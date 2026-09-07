@@ -19,6 +19,8 @@ pnpm run check
 - `GET /api/health`
 - `GET /api/signals`
 - `GET /api/candles?exchange=bitget&symbol=BTC%2FUSDT&market=futures&interval=1H`
+- `GET /api/backtest?exchange=bitget&symbol=BTC%2FUSDT&market=futures&interval=1H&limit=200`
+- `GET /api/stored-candles?exchange=bitget&symbol=BTC%2FUSDT&interval=1H`
 
 ## Текущий MVP
 
@@ -30,4 +32,4 @@ pnpm run check
 - подготовленная модель виртуальной позиции.
 - публичная загрузка свечей Bitget для spot/futures и MEXC для futures.
 
-Адаптеры бирж приводят свечи MEXC и Bitget к единому формату. Следующий шаг — добавить хранение исторических данных и backtesting.
+Адаптеры бирж приводят свечи MEXC и Bitget к единому формату. Свечи сохраняются в локальное JSON-хранилище, а backtesting учитывает комиссию 0.1% на вход и выход.
