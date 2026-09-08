@@ -44,6 +44,7 @@ const scoreFundamentals = ({ rank, marketCapChange30d, volumeToCap, developerAct
 };
 
 const parseQuote = (data, symbol) => {
+  if (Array.isArray(data)) return data.find((item) => item.symbol?.toUpperCase() === symbol);
   const value = data?.[symbol];
   return Array.isArray(value) ? value[0] : value;
 };
@@ -55,7 +56,7 @@ const fetchCoinMarketCapFundamentals = async (baseAsset) => {
     headers: { "X-CMC_PRO_API_KEY": apiKey },
   });
   const asset = parseQuote(payload.data, baseAsset);
-  const quote = asset?.quote?.USD;
+  const quote = asset?.quote?.USD ?? asset?.quotes?.find((item) => item.quote?.USD)?.quote?.USD;
   if (!asset || !quote) throw new Error("CoinMarketCap не вернул данные монеты");
   const marketCap = quote.market_cap ?? null;
   const volume = quote.volume_24h ?? null;
