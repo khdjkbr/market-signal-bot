@@ -28,6 +28,13 @@ pnpm run check
 Веб-панель открывается по адресу `http://localhost:3000/`.
 В панели можно выбрать биржу и рынок, обновить live-сигналы и открыть виртуальную long/short-позицию.
 
+ML endpoints:
+
+- `GET /api/model/train?symbol=BTC%2FUSDT&interval=1H`
+- `GET /api/model/predict?symbol=BTC%2FUSDT&interval=1H`
+
+Сбор свечей и переобучение запускаются каждые 15 минут на Render. Telegram включается переменными `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID`.
+
 Для запуска backend с PostgreSQL:
 
 ```bash

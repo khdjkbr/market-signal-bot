@@ -36,6 +36,11 @@ export const migrate = async () => {
       state JSONB NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS model_state (
+      id TEXT PRIMARY KEY,
+      model JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
   return true;
 };

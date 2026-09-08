@@ -87,3 +87,29 @@ export const savePortfolio = async (portfolio) => {
   await writeFile(dataFile, `${JSON.stringify(store, null, 2)}\n`, "utf8");
   return portfolio;
 };
+
+export const saveModel = async (model) => {
+  const id = `${model.symbol}:${model.interval}`;
+  const database = getPool();
+  if (database) {
+    await database.query("INSERT INTO model_state (id, model) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET model=$2, updated_at=NOW()", [id, model]);
+    return model;
+  }
+  const store = await readStore();
+  store.models ??= {};
+  store.models[id] = model;
+  await mkdir(dirname(dataFile), { recursive: true });
+  await writeFile(dataFile, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  return model;
+};
+
+export const loadModel = async ({ symbol, interval }) => {
+  const id = `${symbol}:${interval}`;
+  const database = getPool();
+  if (database) {
+    const result = await database.query("SELECT model FROM model_state WHERE id=$1", [id]);
+    return result.rows[0]?.model ?? null;
+  }
+  const store = await readStore();
+  return store.models?.[id] ?? null;
+};

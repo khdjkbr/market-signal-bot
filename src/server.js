@@ -2,13 +2,15 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { getPool } from "./database.js";
+import { trainModel, predictModel } from "./model.js";
+import { startScheduler } from "./scheduler.js";
 import { fetchExchangeCandles } from "./market-data.js";
 import { runBacktest } from "./backtest.js";
 import { closePosition, createPortfolio, openPosition } from "./paper-portfolio.js";
 import { createSignal } from "./signals.js";
 import { getSampleMarketData } from "./sample-data.js";
 import { loadCandles, saveCandles } from "./storage.js";
-import { loadPortfolio, savePortfolio } from "./storage.js";
+import { loadModel, loadPortfolio, saveModel, savePortfolio } from "./storage.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const staticFiles = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
@@ -92,6 +94,41 @@ const server = createServer((request, response) => {
     return;
   }
 
+  if (request.url?.startsWith("/api/model/train")) {
+    const url = new URL(request.url, "http://localhost");
+    const exchange = url.searchParams.get("exchange") ?? "bitget";
+    const symbol = url.searchParams.get("symbol") ?? "BTC/USDT";
+    const interval = url.searchParams.get("interval") ?? "1H";
+    const market = url.searchParams.get("market") ?? "futures";
+    fetchExchangeCandles({ exchange, symbol, interval, market, limit: 500 })
+      .then(async (candles) => {
+        await saveCandles(candles);
+        const model = trainModel({ candles, symbol, interval });
+        await saveModel(model);
+        sendJson(response, 200, { model, signal: predictModel({ model, candles }) });
+      })
+      .catch((error) => sendJson(response, 400, { error: error.message }));
+    return;
+  }
+
+  if (request.url?.startsWith("/api/model/predict")) {
+    const url = new URL(request.url, "http://localhost");
+    const exchange = url.searchParams.get("exchange") ?? "bitget";
+    const symbol = url.searchParams.get("symbol") ?? "BTC/USDT";
+    const interval = url.searchParams.get("interval") ?? "1H";
+    const market = url.searchParams.get("market") ?? "futures";
+    Promise.all([
+      loadModel({ symbol, interval }),
+      fetchExchangeCandles({ exchange, symbol, interval, market, limit: 100 }),
+    ]).then(([model, candles]) => {
+      if (!model) {
+        throw new Error(`No trained model for ${symbol}/${interval}`);
+      }
+      sendJson(response, 200, { signal: predictModel({ model, candles }) });
+    }).catch((error) => sendJson(response, 400, { error: error.message }));
+    return;
+  }
+
   if (request.url?.startsWith("/api/candles")) {
     const url = new URL(request.url, "http://localhost");
     const exchange = url.searchParams.get("exchange") ?? "bitget";
@@ -165,4 +202,5 @@ const server = createServer((request, response) => {
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`Market signal bot is running on port ${port}`);
+  startScheduler();
 });
