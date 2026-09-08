@@ -96,7 +96,7 @@ const refresh = async () => {
     const dashboard = await loadDashboard();
     renderSignals(dashboard.signals.signals);
     renderPortfolio(dashboard.portfolio, dashboard.signals.signals);
-    status.textContent = dashboard.signals.errors?.length ? `Ошибок: ${dashboard.signals.errors.length}` : "Live-данные";
+    status.textContent = isStaticMode ? "GitHub Pages demo" : dashboard.signals.errors?.length ? `Ошибок: ${dashboard.signals.errors.length}` : "Live-данные";
   } catch (error) {
     status.textContent = error.message;
   }
