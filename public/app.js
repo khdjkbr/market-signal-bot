@@ -1,7 +1,8 @@
 const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
 const formatPrice = (value) => Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 4 });
-const isStaticMode = window.location.hostname.endsWith("github.io");
-const API_BASE_URL = window.API_BASE_URL ?? "";
+const isGitHubPages = window.location.hostname.endsWith("github.io");
+const API_BASE_URL = window.API_BASE_URL ?? (isGitHubPages ? "https://market-signal-bot-api.onrender.com" : "");
+const isStaticMode = isGitHubPages && API_BASE_URL === "";
 const demoSignals = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XAUT/USDT"].map((symbol, index) => ({
   symbol,
   signal: index % 2 === 0 ? "HOLD" : "BUY",
