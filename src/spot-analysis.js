@@ -3,6 +3,7 @@ import { saveCandles } from "./storage.js";
 
 const COINGECKO_API = "https://api.coingecko.com/api/v3";
 const COINMARKETCAP_API = "https://pro-api.coinmarketcap.com/v3";
+const COINMARKETCAP_LEGACY_API = "https://pro-api.coinmarketcap.com/v2";
 const fundamentalsCache = new Map();
 const FUNDAMENTALS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -45,17 +46,22 @@ const scoreFundamentals = ({ rank, marketCapChange30d, volumeToCap, developerAct
 
 const parseQuote = (data, symbol) => {
   if (Array.isArray(data)) return data.find((item) => item.symbol?.toUpperCase() === symbol);
-  const value = data?.[symbol];
+  const value = data?.[symbol] ?? Object.values(data ?? {})[0];
   return Array.isArray(value) ? value[0] : value;
 };
 
 const fetchCoinMarketCapFundamentals = async (baseAsset) => {
   const apiKey = process.env.COINMARKETCAP_API_KEY;
   if (!apiKey) throw new Error("COINMARKETCAP_API_KEY не задан");
-  const payload = await fetchJson(`${COINMARKETCAP_API}/cryptocurrency/quotes/latest?symbol=${encodeURIComponent(baseAsset)}&convert=USD`, {
+  const options = {
     headers: { "X-CMC_PRO_API_KEY": apiKey },
-  });
-  const asset = parseQuote(payload.data, baseAsset);
+  };
+  let payload = await fetchJson(`${COINMARKETCAP_API}/cryptocurrency/quotes/latest?symbol=${encodeURIComponent(baseAsset)}&convert=USD`, options);
+  let asset = parseQuote(payload.data, baseAsset);
+  if (!asset) {
+    payload = await fetchJson(`${COINMARKETCAP_LEGACY_API}/cryptocurrency/quotes/latest?symbol=${encodeURIComponent(baseAsset)}&convert=USD`, options);
+    asset = parseQuote(payload.data, baseAsset);
+  }
   const quote = asset?.quote?.USD ?? asset?.quotes?.find((item) => item.quote?.USD)?.quote?.USD;
   if (!asset || !quote) throw new Error("CoinMarketCap не вернул данные монеты");
   const marketCap = quote.market_cap ?? null;
