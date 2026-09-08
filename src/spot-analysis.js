@@ -77,7 +77,7 @@ const fetchCoinGeckoFundamentals = async (baseAsset) => {
   try {
     const search = await fetchJson(`${COINGECKO_API}/search?query=${encodeURIComponent(baseAsset)}`);
     const coin = (search.coins ?? []).find((item) => item.symbol?.toUpperCase() === baseAsset);
-    if (!coin) return { available: false, reason: "Монета не найдена в источнике фундаментальных данных" };
+    if (!coin) return { available: false, source: "coingecko", reason: "Монета не найдена в источнике фундаментальных данных" };
 
     const details = await fetchJson(`${COINGECKO_API}/coins/${encodeURIComponent(coin.id)}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=true&sparkline=false`);
     const marketData = details.market_data ?? {};
@@ -98,7 +98,7 @@ const fetchCoinGeckoFundamentals = async (baseAsset) => {
       volumeToCap: volumeToCap === null ? null : Number(volumeToCap.toFixed(3)),
     };
   } catch (error) {
-    return { available: false, reason: `Источник фундаментальных данных недоступен: ${error.message}` };
+    return { available: false, source: "coingecko", reason: error.message };
   }
 };
 
@@ -109,13 +109,16 @@ const fetchFundamentals = async (baseAsset) => {
   for (const provider of [fetchCoinMarketCapFundamentals, fetchCoinGeckoFundamentals]) {
     try {
       const value = await provider(baseAsset);
-      fundamentalsCache.set(baseAsset, { value, expiresAt: Date.now() + FUNDAMENTALS_CACHE_TTL_MS });
-      return value;
+      if (value.available) {
+        fundamentalsCache.set(baseAsset, { value, expiresAt: Date.now() + FUNDAMENTALS_CACHE_TTL_MS });
+        return value;
+      }
+      errors.push(`${value.source ?? "Источник"}: ${value.reason}`);
     } catch (error) {
       errors.push(`${provider === fetchCoinMarketCapFundamentals ? "CoinMarketCap" : "CoinGecko"}: ${error.message}`);
     }
   }
-  const value = { available: false, source: null, reason: errors.join("; ") };
+  const value = { available: false, source: null, reason: errors.join("; ") || "Нет доступных фундаментальных источников" };
   fundamentalsCache.set(baseAsset, { value, expiresAt: Date.now() + 15 * 60 * 1000 });
   return value;
 };
