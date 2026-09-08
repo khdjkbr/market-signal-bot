@@ -5,6 +5,7 @@ const COINGECKO_API = "https://api.coingecko.com/api/v3";
 const COINMARKETCAP_API = "https://pro-api.coinmarketcap.com/v3";
 const COINMARKETCAP_LEGACY_API = "https://pro-api.coinmarketcap.com/v2";
 const COINMARKETCAP_MAP_API = "https://pro-api.coinmarketcap.com/v1";
+const COINPAPRIKA_API = "https://api.coinpaprika.com/v1";
 const fundamentalsCache = new Map();
 const FUNDAMENTALS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -113,11 +114,33 @@ const fetchCoinGeckoFundamentals = async (baseAsset) => {
   }
 };
 
+const fetchCoinPaprikaFundamentals = async (baseAsset) => {
+  const search = await fetchJson(`${COINPAPRIKA_API}/search?q=${encodeURIComponent(baseAsset)}`);
+  const coin = (search.currencies ?? []).find((item) => item.symbol?.toUpperCase() === baseAsset && item.is_active !== false);
+  if (!coin) return { available: false, source: "coinpaprika", reason: "Монета не найдена" };
+  const ticker = await fetchJson(`${COINPAPRIKA_API}/tickers/${encodeURIComponent(coin.id)}`);
+  const usd = ticker.quotes?.USD ?? {};
+  const marketCap = usd.market_cap ?? null;
+  const volume = usd.volume_24h ?? null;
+  const volumeToCap = marketCap && volume ? volume / marketCap : null;
+  const marketCapChange30d = usd.percent_change_30d ?? null;
+  return {
+    available: true,
+    source: "coinpaprika",
+    name: ticker.name ?? coin.name,
+    score: scoreFundamentals({ rank: ticker.rank, marketCapChange30d, volumeToCap }),
+    marketCapRank: ticker.rank ?? null,
+    marketCapUsd: marketCap,
+    marketCapChange30d: marketCapChange30d === null ? null : Number(marketCapChange30d.toFixed(1)),
+    volumeToCap: volumeToCap === null ? null : Number(volumeToCap.toFixed(3)),
+  };
+};
+
 const fetchFundamentals = async (baseAsset) => {
   const cached = fundamentalsCache.get(baseAsset);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
   const errors = [];
-  for (const provider of [fetchCoinMarketCapFundamentals, fetchCoinGeckoFundamentals]) {
+  for (const provider of [fetchCoinMarketCapFundamentals, fetchCoinGeckoFundamentals, fetchCoinPaprikaFundamentals]) {
     try {
       const value = await provider(baseAsset);
       if (value.available) {
@@ -126,7 +149,10 @@ const fetchFundamentals = async (baseAsset) => {
       }
       errors.push(`${value.source ?? "Источник"}: ${value.reason}`);
     } catch (error) {
-      errors.push(`${provider === fetchCoinMarketCapFundamentals ? "CoinMarketCap" : "CoinGecko"}: ${error.message}`);
+      const providerName = provider === fetchCoinMarketCapFundamentals
+        ? "CoinMarketCap"
+        : provider === fetchCoinGeckoFundamentals ? "CoinGecko" : "CoinPaprika";
+      errors.push(`${providerName}: ${error.message}`);
     }
   }
   const value = { available: false, source: null, reason: errors.join("; ") || "Нет доступных фундаментальных источников" };
