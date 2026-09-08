@@ -4,8 +4,7 @@ services:
     runtime: node
     plan: free
     buildCommand: corepack enable && pnpm install --frozen-lockfile
-    preDeployCommand: pnpm run db:migrate
-    startCommand: pnpm start
+    startCommand: pnpm run db:migrate && pnpm start
     healthCheckPath: /api/health
     autoDeployTrigger: commit
     envVars:
