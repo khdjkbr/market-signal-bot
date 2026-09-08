@@ -15,7 +15,12 @@ const staticFiles = { ".html": "text/html; charset=utf-8", ".css": "text/css; ch
 const symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XAUT/USDT"];
 
 const sendJson = (response, statusCode, payload) => {
-  response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  response.writeHead(statusCode, {
+    "Access-Control-Allow-Origin": process.env.FRONTEND_URL ?? "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Content-Type": "application/json; charset=utf-8",
+  });
   response.end(JSON.stringify(payload, null, 2));
 };
 
@@ -47,6 +52,10 @@ const serveStatic = async (request, response) => {
 };
 
 const server = createServer((request, response) => {
+  if (request.method === "OPTIONS") {
+    sendJson(response, 204, {});
+    return;
+  }
   if (request.method === "GET" && (request.url === "/" || request.url?.startsWith("/app.") || request.url?.startsWith("/styles."))) {
     serveStatic(request, response).catch((error) => sendJson(response, 500, { error: error.message }));
     return;
@@ -154,6 +163,6 @@ const server = createServer((request, response) => {
   sendJson(response, 404, { error: "Not found" });
 });
 
-server.listen(port, () => {
-  console.log(`Market signal bot is running on http://localhost:${port}`);
+server.listen(port, "0.0.0.0", () => {
+  console.log(`Market signal bot is running on port ${port}`);
 });

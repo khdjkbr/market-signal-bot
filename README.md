@@ -36,6 +36,10 @@ docker compose up --build
 
 Без Docker проект использует локальное JSON-хранилище. При заданной `DATABASE_URL` автоматически используется PostgreSQL.
 
+## Облачный backend
+
+Файл `render.yaml` описывает Node web-service и PostgreSQL для Render. Render подключает репозиторий из GitHub, выполняет миграцию базы и автоматически разворачивает новые коммиты. Для live-режима после создания сервиса нужно указать его URL в `public/app.js` как `API_BASE_URL`.
+
 GitHub Pages публикует статическую версию dashboard: `https://khdjkbr.github.io/market-signal-bot/`. В Pages используется demo-режим, а paper-портфель сохраняется в браузере. Live API требует отдельного постоянно работающего backend.
 
 ## Текущий MVP

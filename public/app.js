@@ -1,6 +1,7 @@
 const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
 const formatPrice = (value) => Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 4 });
 const isStaticMode = window.location.hostname.endsWith("github.io");
+const API_BASE_URL = window.API_BASE_URL ?? "";
 const demoSignals = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XAUT/USDT"].map((symbol, index) => ({
   symbol,
   signal: index % 2 === 0 ? "HOLD" : "BUY",
@@ -19,8 +20,8 @@ const loadDashboard = async () => {
   const exchange = document.querySelector("#exchange").value;
   const market = document.querySelector("#market").value;
   const [signalsResponse, portfolioResponse] = await Promise.all([
-    fetch(`/api/live-signals?exchange=${exchange}&market=${market}&interval=1H`),
-    fetch("/api/paper-portfolio"),
+    fetch(`${API_BASE_URL}/api/live-signals?exchange=${exchange}&market=${market}&interval=1H`),
+    fetch(`${API_BASE_URL}/api/paper-portfolio`),
   ]);
   if (!signalsResponse.ok || !portfolioResponse.ok) {
     throw new Error("Не удалось загрузить данные dashboard");
@@ -66,7 +67,7 @@ const executeTrade = async ({ action, side, symbol, price }) => {
     await refresh();
     return;
   }
-  const response = await fetch("/api/paper-trade", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, side, symbol, price: Number(price), quantity }) });
+  const response = await fetch(`${API_BASE_URL}/api/paper-trade`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, side, symbol, price: Number(price), quantity }) });
   const result = await response.json();
   if (!response.ok) {
     throw new Error(result.error);
