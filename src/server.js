@@ -11,6 +11,8 @@ import { createSignal } from "./signals.js";
 import { getSampleMarketData } from "./sample-data.js";
 import { loadCandles, saveCandles } from "./storage.js";
 import { loadModel, loadPortfolio, saveModel, savePortfolio } from "./storage.js";
+import { analyzeSpotPair, formatSpotAnalysis } from "./spot-analysis.js";
+import { handleTelegramUpdate } from "./telegram.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const staticFiles = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
@@ -64,6 +66,34 @@ const server = createServer((request, response) => {
   }
   if (request.url === "/api/health") {
     sendJson(response, 200, { status: "ok", mode: process.env.DATABASE_URL ? "postgres" : "json", database: Boolean(getPool()) });
+    return;
+  }
+
+  if (request.url === "/api/telegram/webhook" && request.method === "POST") {
+    const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    const receivedSecret = request.headers["x-telegram-bot-api-secret-token"];
+    if (expectedSecret && receivedSecret !== expectedSecret) {
+      sendJson(response, 403, { error: "Invalid Telegram webhook secret" });
+      return;
+    }
+    readBody(request)
+      .then((update) => {
+        sendJson(response, 200, { ok: true });
+        return handleTelegramUpdate(update);
+      })
+      .catch((error) => {
+        console.error(`Telegram webhook failed: ${error.message}`);
+        if (!response.writableEnded) sendJson(response, 400, { error: error.message });
+      });
+    return;
+  }
+
+  if (request.url?.startsWith("/api/spot-analysis")) {
+    const url = new URL(request.url, "http://localhost");
+    const symbol = url.searchParams.get("symbol") ?? "BTC/USDT";
+    analyzeSpotPair({ symbol, exchange: "bitget" })
+      .then((analysis) => sendJson(response, 200, { analysis, message: formatSpotAnalysis(analysis) }))
+      .catch((error) => sendJson(response, 400, { error: error.message }));
     return;
   }
 

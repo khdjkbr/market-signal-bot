@@ -35,6 +35,8 @@ ML endpoints:
 
 Сбор свечей и переобучение запускаются каждые 15 минут на Render. Telegram включается переменными `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID`.
 
+Для запросов спотового анализа в Telegram укажите webhook `https://market-signal-bot-api.onrender.com/api/telegram/webhook` для бота. После этого пользователь может отправить `SOL/USDT`, `SOLUSDT` или `/spot SOL/USDT`. Сервер проверит пару на Bitget Spot, сохранит свечи, запросит доступные фундаментальные данные и вернёт прогноз на 30 дней. Для защиты webhook можно дополнительно задать `TELEGRAM_WEBHOOK_SECRET` и передать его при регистрации webhook.
+
 Для запуска backend с PostgreSQL:
 
 ```bash

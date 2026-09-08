@@ -3,10 +3,9 @@ export const formatSignalMessage = ({ market, symbol, signal, probabilities }) =
   return `${marketLabel}\n${symbol}: ${signal}\nРост: ${(probabilities.growth * 100).toFixed(1)}%\nПадение: ${(probabilities.decline * 100).toFixed(1)}%`;
 };
 
-export const sendTelegramMessage = async (message) => {
+const postTelegramMessage = async (chatId, message) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) {
+  if (!token || !chatId || !message) {
     return false;
   }
 
@@ -21,3 +20,7 @@ export const sendTelegramMessage = async (message) => {
   }
   return true;
 };
+
+export const sendTelegramMessageToChat = (chatId, message) => postTelegramMessage(chatId, message);
+
+export const sendTelegramMessage = (message) => postTelegramMessage(process.env.TELEGRAM_CHAT_ID, message);
