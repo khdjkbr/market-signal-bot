@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "check": "node --test"
+    "check": "node --test",
+    "db:migrate": "node src/migrate.js"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
   }
 }

@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
+import { getPool } from "./database.js";
 import { fetchExchangeCandles } from "./market-data.js";
 import { runBacktest } from "./backtest.js";
 import { closePosition, createPortfolio, openPosition } from "./paper-portfolio.js";
@@ -51,7 +52,7 @@ const server = createServer((request, response) => {
     return;
   }
   if (request.url === "/api/health") {
-    sendJson(response, 200, { status: "ok", mode: "demo" });
+    sendJson(response, 200, { status: "ok", mode: process.env.DATABASE_URL ? "postgres" : "json", database: Boolean(getPool()) });
     return;
   }
 
