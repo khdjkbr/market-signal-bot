@@ -1,3 +1,8 @@
+export const formatSignalMessage = ({ market, symbol, signal, probabilities }) => {
+  const marketLabel = market === "spot" ? "SPOT" : "FUTURES";
+  return `${marketLabel}\n${symbol}: ${signal}\nРост: ${(probabilities.growth * 100).toFixed(1)}%\nПадение: ${(probabilities.decline * 100).toFixed(1)}%`;
+};
+
 export const sendTelegramMessage = async (message) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;

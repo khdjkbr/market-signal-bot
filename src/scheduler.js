@@ -1,6 +1,6 @@
 import { fetchExchangeCandles } from "./market-data.js";
 import { trainModel, predictModel } from "./model.js";
-import { sendTelegramMessage } from "./notifications.js";
+import { formatSignalMessage, sendTelegramMessage } from "./notifications.js";
 import { saveCandles, saveModel } from "./storage.js";
 
 const symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XAUT/USDT"];
@@ -19,7 +19,7 @@ export const syncAndTrain = async () => {
     results.push(signal);
     const strongestProbability = Math.max(signal.probabilities.growth, signal.probabilities.decline);
     if (signal.signal !== "HOLD" && strongestProbability >= 0.6) {
-      await sendTelegramMessage(`${symbol}: ${signal.signal}\nРост: ${(signal.probabilities.growth * 100).toFixed(1)}%\nПадение: ${(signal.probabilities.decline * 100).toFixed(1)}%`);
+      await sendTelegramMessage(formatSignalMessage({ market, symbol, ...signal }));
     }
   }
   return results;
