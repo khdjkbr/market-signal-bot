@@ -4,6 +4,7 @@ import { saveCandles } from "./storage.js";
 const COINGECKO_API = "https://api.coingecko.com/api/v3";
 const COINMARKETCAP_API = "https://pro-api.coinmarketcap.com/v3";
 const COINMARKETCAP_LEGACY_API = "https://pro-api.coinmarketcap.com/v2";
+const COINMARKETCAP_MAP_API = "https://pro-api.coinmarketcap.com/v1";
 const fundamentalsCache = new Map();
 const FUNDAMENTALS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -56,10 +57,13 @@ const fetchCoinMarketCapFundamentals = async (baseAsset) => {
   const options = {
     headers: { "X-CMC_PRO_API_KEY": apiKey },
   };
-  let payload = await fetchJson(`${COINMARKETCAP_API}/cryptocurrency/quotes/latest?symbol=${encodeURIComponent(baseAsset)}&convert=USD`, options);
+  const mapPayload = await fetchJson(`${COINMARKETCAP_MAP_API}/cryptocurrency/map?symbol=${encodeURIComponent(baseAsset)}&listing_status=active`, options);
+  const mappedAsset = (mapPayload.data ?? []).find((item) => item.symbol?.toUpperCase() === baseAsset);
+  const query = mappedAsset?.id ? `id=${mappedAsset.id}` : `symbol=${encodeURIComponent(baseAsset)}`;
+  let payload = await fetchJson(`${COINMARKETCAP_API}/cryptocurrency/quotes/latest?${query}&convert=USD`, options);
   let asset = parseQuote(payload.data, baseAsset);
   if (!asset) {
-    payload = await fetchJson(`${COINMARKETCAP_LEGACY_API}/cryptocurrency/quotes/latest?symbol=${encodeURIComponent(baseAsset)}&convert=USD`, options);
+    payload = await fetchJson(`${COINMARKETCAP_LEGACY_API}/cryptocurrency/quotes/latest?${query}&convert=USD`, options);
     asset = parseQuote(payload.data, baseAsset);
   }
   const quote = asset?.quote?.USD ?? asset?.quotes?.find((item) => item.quote?.USD)?.quote?.USD;
