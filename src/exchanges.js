@@ -32,6 +32,18 @@ export const normalizeMexcCandles = (payload, symbol, interval, exchange = "mexc
   ], exchange, symbol, interval));
 };
 
+export const normalizeMexcSpotCandles = (rows, symbol, interval, exchange = "mexc") => rows
+  .map((row) => toCandle([
+    row[0],
+    row[1],
+    row[2],
+    row[3],
+    row[4],
+    row[5],
+    row[7],
+  ], exchange, symbol, interval))
+  .sort((first, second) => first.timestamp - second.timestamp);
+
 export const exchangeConfig = {
   bitget: {
     name: "Bitget",
@@ -40,6 +52,7 @@ export const exchangeConfig = {
   },
   mexc: {
     name: "MEXC",
+    spotCandles: "https://api.mexc.com/api/v3/klines",
     futuresCandles: "https://contract.mexc.com/api/v1/contract/kline",
   },
 };

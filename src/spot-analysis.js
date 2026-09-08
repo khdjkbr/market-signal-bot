@@ -1,7 +1,10 @@
-import { fetchExchangeCandles } from "./market-data.js";
+import { fetchSpotCandlesWithFallback } from "./market-data.js";
 import { saveCandles } from "./storage.js";
 
 const COINGECKO_API = "https://api.coingecko.com/api/v3";
+const COINMARKETCAP_API = "https://pro-api.coinmarketcap.com/v3";
+const fundamentalsCache = new Map();
+const FUNDAMENTALS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 const average = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
 
@@ -20,13 +23,57 @@ const calculateRsi = (closes, periods = 14) => {
   return 100 - (100 / (1 + gains / losses));
 };
 
-const fetchJson = async (url) => {
-  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+const fetchJson = async (url, options = {}) => {
+  const response = await fetch(url, { ...options, signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) {
+    const error = new Error(`HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return response.json();
 };
 
-const fetchFundamentals = async (baseAsset) => {
+const scoreFundamentals = ({ rank, marketCapChange30d, volumeToCap, developerActivity = false }) => {
+  let score = 5;
+  if (rank && rank <= 100) score += 1.5;
+  if (rank && rank <= 25) score += 0.5;
+  if (marketCapChange30d !== null) score += Math.max(-1.5, Math.min(1.5, marketCapChange30d / 10));
+  if (volumeToCap !== null && volumeToCap >= 0.03) score += 0.5;
+  if (developerActivity) score += 0.5;
+  return Number(Math.max(0, Math.min(10, score)).toFixed(1));
+};
+
+const parseQuote = (data, symbol) => {
+  const value = data?.[symbol];
+  return Array.isArray(value) ? value[0] : value;
+};
+
+const fetchCoinMarketCapFundamentals = async (baseAsset) => {
+  const apiKey = process.env.COINMARKETCAP_API_KEY;
+  if (!apiKey) throw new Error("COINMARKETCAP_API_KEY не задан");
+  const payload = await fetchJson(`${COINMARKETCAP_API}/cryptocurrency/quotes/latest?symbol=${encodeURIComponent(baseAsset)}&convert=USD`, {
+    headers: { "X-CMC_PRO_API_KEY": apiKey },
+  });
+  const asset = parseQuote(payload.data, baseAsset);
+  const quote = asset?.quote?.USD;
+  if (!asset || !quote) throw new Error("CoinMarketCap не вернул данные монеты");
+  const marketCap = quote.market_cap ?? null;
+  const volume = quote.volume_24h ?? null;
+  const volumeToCap = marketCap && volume ? volume / marketCap : null;
+  const marketCapChange30d = quote.percent_change_30d ?? null;
+  return {
+    available: true,
+    source: "coinmarketcap",
+    name: asset.name,
+    score: scoreFundamentals({ rank: asset.cmc_rank, marketCapChange30d, volumeToCap }),
+    marketCapRank: asset.cmc_rank ?? null,
+    marketCapUsd: marketCap,
+    marketCapChange30d: marketCapChange30d === null ? null : Number(marketCapChange30d.toFixed(1)),
+    volumeToCap: volumeToCap === null ? null : Number(volumeToCap.toFixed(3)),
+  };
+};
+
+const fetchCoinGeckoFundamentals = async (baseAsset) => {
   try {
     const search = await fetchJson(`${COINGECKO_API}/search?query=${encodeURIComponent(baseAsset)}`);
     const coin = (search.coins ?? []).find((item) => item.symbol?.toUpperCase() === baseAsset);
@@ -40,18 +87,11 @@ const fetchFundamentals = async (baseAsset) => {
     const marketCapChange30d = marketData.market_cap_change_percentage_30d ?? null;
     const volumeToCap = marketCap && volume ? volume / marketCap : null;
 
-    let score = 5;
-    if (rank && rank <= 100) score += 1.5;
-    if (rank && rank <= 25) score += 0.5;
-    if (marketCapChange30d !== null) score += Math.max(-1.5, Math.min(1.5, marketCapChange30d / 10));
-    if (volumeToCap !== null && volumeToCap >= 0.03) score += 0.5;
-    if ((details.developer_data?.commit_count_4_weeks ?? 0) > 0) score += 0.5;
-    score = Math.max(0, Math.min(10, score));
-
     return {
       available: true,
+      source: "coingecko",
       name: details.name ?? coin.name,
-      score: Number(score.toFixed(1)),
+      score: scoreFundamentals({ rank, marketCapChange30d, volumeToCap, developerActivity: (details.developer_data?.commit_count_4_weeks ?? 0) > 0 }),
       marketCapRank: rank,
       marketCapUsd: marketCap,
       marketCapChange30d: marketCapChange30d === null ? null : Number(marketCapChange30d.toFixed(1)),
@@ -60,6 +100,24 @@ const fetchFundamentals = async (baseAsset) => {
   } catch (error) {
     return { available: false, reason: `Источник фундаментальных данных недоступен: ${error.message}` };
   }
+};
+
+const fetchFundamentals = async (baseAsset) => {
+  const cached = fundamentalsCache.get(baseAsset);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const errors = [];
+  for (const provider of [fetchCoinMarketCapFundamentals, fetchCoinGeckoFundamentals]) {
+    try {
+      const value = await provider(baseAsset);
+      fundamentalsCache.set(baseAsset, { value, expiresAt: Date.now() + FUNDAMENTALS_CACHE_TTL_MS });
+      return value;
+    } catch (error) {
+      errors.push(`${provider === fetchCoinMarketCapFundamentals ? "CoinMarketCap" : "CoinGecko"}: ${error.message}`);
+    }
+  }
+  const value = { available: false, source: null, reason: errors.join("; ") };
+  fundamentalsCache.set(baseAsset, { value, expiresAt: Date.now() + 15 * 60 * 1000 });
+  return value;
 };
 
 const buildProbabilities = ({ return30d, sma20, sma50, rsi, fundamentalScore }) => {
@@ -89,7 +147,8 @@ export const normalizeSpotPair = (input) => {
 export const analyzeSpotPair = async ({ symbol, exchange = "bitget" }) => {
   const normalized = normalizeSpotPair(symbol);
   if (!normalized) throw new Error("Укажите пару в формате SOL/USDT");
-  const candles = await fetchExchangeCandles({ exchange, symbol: normalized, interval: "1D", market: "spot", limit: 200 });
+  const marketData = await fetchSpotCandlesWithFallback({ symbol: normalized, interval: "1D", limit: 200 });
+  const { candles } = marketData;
   if (candles.length < 60) throw new Error(`Для ${normalized} пока недостаточно дневных свечей`);
   await saveCandles(candles);
 
@@ -107,7 +166,9 @@ export const analyzeSpotPair = async ({ symbol, exchange = "bitget" }) => {
 
   return {
     market: "spot",
-    exchange,
+    exchange: marketData.source,
+    technicalSource: marketData.source,
+    technicalFallbackUsed: marketData.fallbackUsed,
     symbol: normalized,
     horizon: "30D",
     signal,
@@ -143,6 +204,7 @@ export const formatSpotAnalysis = (analysis) => {
     `Вероятность снижения: ${percent(analysis.probabilities.decline)}`,
     `Боковое движение: ${percent(analysis.probabilities.sideways)}`,
     "",
+    `Технические данные: ${analysis.technicalSource}${analysis.technicalFallbackUsed ? " (резерв)" : ""}`,
     fundamental,
     `Технические изменения: 7д ${change(analysis.technical.return7d)}, 30д ${change(analysis.technical.return30d)}, 60д ${change(analysis.technical.return60d)}`,
     `RSI: ${analysis.technical.rsi14 === null ? "нет данных" : analysis.technical.rsi14.toFixed(1)}`,
